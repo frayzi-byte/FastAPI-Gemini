@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f4ee">
+  <title>Лист — AI-чат</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+    :root { color-scheme: light; --paper:#f5f4ee; --surface:#fffefa; --ink:#20231f; --muted:#777b72; --line:#e6e5dc; --green:#315c45; --green-dark:#244936; --green-soft:#e8eee8; --lime:#d8ed91; --warning:#a74435; --sidebar:272px; font-family:'DM Sans',sans-serif; font-synthesis:none; text-rendering:optimizeLegibility; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-width:320px; min-height:100vh; overflow:auto; color:var(--ink); background:var(--paper); }
+    html { scroll-behavior:smooth; }
+    button,textarea { font:inherit; } button { color:inherit; }
+    .app { display:grid; grid-template-columns:var(--sidebar) minmax(0,1fr); min-height:100vh; }
+    .sidebar { display:flex; flex-direction:column; min-height:0; padding:25px 17px 16px; background:#eeeee6; border-right:1px solid var(--line); }
+    .main, .conversation { overflow:visible; }
+    .brand { display:flex; align-items:center; gap:10px; padding:0 10px; color:var(--ink); text-decoration:none; }
+    .brand-mark { display:grid; place-items:center; width:34px; height:34px; border-radius:11px; color:#f9f9f1; background:var(--green); }
+    .brand-name { font:800 21px/1 'Manrope',sans-serif; }
+    .brand-caption { margin:5px 0 0 44px; color:var(--muted); font-size:11px; }
+    .new-chat { display:flex; align-items:center; justify-content:center; gap:9px; min-height:44px; margin:29px 2px 25px; border:1px solid #d7d9ce; border-radius:9px; background:var(--surface); cursor:pointer; transition:border-color .18s,transform .18s; }
+    .new-chat:hover { border-color:var(--green); transform:translateY(-1px); }
+    .section-label { display:flex; align-items:center; justify-content:space-between; padding:0 10px 10px; color:#85877f; font-size:10px; font-weight:700; text-transform:uppercase; }
+    .history { flex:1; min-height:0; overflow:auto; } .history-list { display:grid; gap:3px; }
+    .history-item { display:flex; align-items:center; width:100%; min-height:39px; gap:10px; padding:8px 10px; overflow:hidden; border:0; border-radius:7px; color:#50544d; background:transparent; text-align:left; cursor:pointer; }
+    .history-item:hover,.history-item.active { color:var(--ink); background:#e3e5dc; }
+    .history-item span { overflow:hidden; font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
+    .history-empty { padding:3px 10px; color:#92948d; font-size:12px; line-height:1.55; }
+    .sidebar-bottom { display:flex; align-items:center; gap:10px; padding:15px 8px 2px; border-top:1px solid #ddded5; }
+    .avatar { display:grid; place-items:center; width:31px; height:31px; border-radius:50%; color:var(--green-dark); background:var(--lime); font:700 12px 'Manrope',sans-serif; }
+    .profile-copy { display:grid; gap:2px; } .profile-copy strong { font-size:12px; font-weight:600; } .profile-copy span { color:var(--muted); font-size:10px; }
+    .main { display:flex; flex-direction:column; min-width:0; height:100%; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; min-height:68px; padding:0 38px; border-bottom:1px solid var(--line); background:#fffefa9c; }
+    .topbar-left { display:flex; align-items:center; gap:13px; } .mobile-brand { display:none; }
+    .model-label { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; } .model-label svg { color:var(--green); }
+    .model-tag { padding:4px 7px; border:1px solid var(--line); border-radius:5px; color:#73776e; font-size:10px; font-weight:500; }
+    .connection { display:flex; align-items:center; gap:7px; color:var(--muted); font-size:11px; }
+    .connection-dot { width:7px; height:7px; border-radius:50%; background:#b7b9b1; }
+    .connection.online .connection-dot { background:#4d9564; box-shadow:0 0 0 3px #4d95641a; } .connection.offline .connection-dot { background:#cf6654; }
+    .conversation { flex:1; overflow-y:auto; padding:39px 24px 24px; scroll-behavior:smooth; }
+    .thread { width:min(100%,790px); margin:0 auto; }
+    .welcome { padding:clamp(38px,9vh,92px) 10px 24px; animation:arrive .5s ease both; }
+    .welcome-kicker { display:flex; align-items:center; gap:9px; margin-bottom:19px; color:var(--green); font-size:11px; font-weight:700; text-transform:uppercase; }
+    .welcome-kicker::before { width:23px; height:1px; background:var(--green); content:''; }
+    h1 { max-width:650px; margin:0; font:600 clamp(35px,5vw,53px)/1.11 'Manrope',sans-serif; }
+    h1 em { color:var(--green); font-style:normal; }
+    .welcome-copy { max-width:470px; margin:17px 0 0; color:var(--muted); font-size:14px; line-height:1.7; }
+    .suggestions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; max-width:650px; margin-top:34px; }
+    .suggestion { display:flex; align-items:flex-start; min-height:73px; gap:11px; padding:14px; border:1px solid #e0e1d8; border-radius:8px; background:#fffefa b8; text-align:left; cursor:pointer; transition:.18s ease; }
+    .suggestion:hover { border-color:#a9baa9; background:var(--surface); transform:translateY(-2px); }
+    .suggestion-icon { display:grid; flex:0 0 27px; place-items:center; width:27px; height:27px; border-radius:7px; color:var(--green); background:var(--green-soft); }
+    .suggestion span:last-child { padding-top:3px; font-size:12px; line-height:1.45; }
+    .messages { display:grid; gap:27px; padding:5px 0 20px; }
+    .message { display:grid; grid-template-columns:31px minmax(0,1fr); gap:12px; animation:arrive .25s ease both; }
+    .message.user { grid-template-columns:minmax(0,1fr); justify-items:end; }
+    .message-avatar { display:grid; place-items:center; width:30px; height:30px; border-radius:9px; color:white; background:var(--green); }
+    .message-body { min-width:0; padding-top:1px; } .message-meta { display:flex; align-items:center; gap:9px; margin:3px 0 8px; font-size:11px; }
+    .message-meta strong { font-weight:700; } .message-meta time { color:#999b94; font-size:10px; }
+    .message-text { color:#41443e; font-size:13px; line-height:1.75; overflow-wrap:anywhere; white-space:pre-wrap; }
+    .message.user .message-text { max-width:min(82%,570px); padding:12px 15px; border-radius:12px 12px 3px 12px; color:#fafff8; background:var(--green); }
+    .message-actions { display:flex; justify-content:flex-end; margin-top:7px; }
+    .icon-button { display:grid; place-items:center; width:29px; height:29px; padding:0; border:0; border-radius:6px; color:#85877f; background:transparent; cursor:pointer; }
+    .icon-button:hover { color:var(--green); background:var(--green-soft); }
+    .typing { display:flex; align-items:center; gap:5px; height:22px; } .typing i { width:5px; height:5px; border-radius:50%; background:#7b9580; animation:pulse 1s infinite ease-in-out; }
+    .typing i:nth-child(2) { animation-delay:.15s; } .typing i:nth-child(3) { animation-delay:.3s; }
+    .composer-wrap { padding:10px 24px 17px; } .composer { width:min(100%,790px); margin:0 auto; }
+    .input-shell { display:flex; align-items:flex-end; gap:11px; padding:12px 12px 10px 17px; border:1px solid #dcded4; border-radius:12px; background:var(--surface); box-shadow:0 5px 20px #252d1e0a; transition:border-color .2s,box-shadow .2s; }
+    .input-shell:focus-within { border-color:#8aa28d; box-shadow:0 0 0 3px #315c450e; }
+    textarea { flex:1; width:100%; min-height:27px; max-height:150px; padding:3px 0; resize:none; border:0; outline:0; color:var(--ink); background:transparent; font-size:13px; line-height:1.6; }
+    textarea::placeholder { color:#999b94; }
+    .send-button { display:grid; flex:0 0 36px; place-items:center; width:36px; height:36px; border:0; border-radius:8px; color:#fff; background:var(--green); cursor:pointer; transition:background .18s,transform .18s; }
+    .send-button:hover:not(:disabled) { background:var(--green-dark); transform:translateY(-1px); }
+    .send-button:disabled { color:#aeb2a8; background:#e9ebe4; cursor:default; }
+    .composer-note { margin-top:9px; color:#999b94; font-size:10px; text-align:center; }
+    .toast { position:fixed; right:22px; bottom:22px; z-index:5; max-width:min(390px,calc(100vw - 32px)); padding:12px 15px; border:1px solid #ebc9c3; border-radius:8px; color:var(--warning); background:#fff9f6; box-shadow:0 8px 30px #20231f12; font-size:12px; line-height:1.5; opacity:0; pointer-events:none; transform:translateY(7px); transition:.2s ease; }
+    .toast.show { opacity:1; transform:translateY(0); } .sidebar-toggle { display:none; }
+    @keyframes arrive { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes pulse { 0%,60%,100% { opacity:.35; transform:translateY(0); } 30% { opacity:1; transform:translateY(-3px); } }
+    @media (max-width:760px) {
+      .app { grid-template-columns:minmax(0,1fr); }
+      .sidebar { position:fixed; z-index:4; inset:0 auto 0 0; width:min(var(--sidebar),86vw); box-shadow:15px 0 35px #20231f1a; transform:translateX(-105%); transition:transform .22s ease; }
+      .sidebar.open { transform:translateX(0); } .sidebar-toggle { display:grid; place-items:center; width:34px; height:34px; padding:0; border:0; border-radius:7px; background:transparent; cursor:pointer; }
+      .topbar { min-height:59px; padding:0 15px; } .mobile-brand { display:flex; align-items:center; gap:7px; margin-right:4px; font:800 16px 'Manrope',sans-serif; }
+      .mobile-brand .brand-mark { width:27px; height:27px; border-radius:8px; } .topbar-left { gap:7px; } .model-label { gap:5px; font-size:11px; }
+      .model-label svg { display:none; } .model-tag { font-size:9px; } .connection { gap:5px; font-size:10px; }
+      .conversation { padding:23px 17px 15px; } .welcome { padding:clamp(34px,9vh,68px) 3px 19px; }
+      h1 { font-size:clamp(34px,10vw,46px); } .welcome-copy { font-size:13px; } .suggestions { gap:8px; margin-top:25px; }
+      .suggestion { min-height:76px; gap:8px; padding:11px 9px; } .suggestion span:last-child { font-size:11px; }
+      .suggestion-icon { flex-basis:24px; width:24px; height:24px; } .composer-wrap { padding:8px 13px 12px; } .composer-note { font-size:9px; }
+    }
+    @media (max-width:390px) { .connection span:last-child { display:none; } .suggestions { grid-template-columns:minmax(0,1fr); } .suggestion { min-height:57px; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar" aria-label="История чатов">
+      <a class="brand" href="#" aria-label="Лист, на главную"><span class="brand-mark" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M19.8 4.2C12.1 4.4 6.2 6.1 5 11.1c-.7 2.8 1.2 5.1 4 5.1 5 0 8.9-5.8 10.8-12Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M4 20c2.6-4.3 6-7.2 10-9.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span><span class="brand-name">лист</span></a>
+      <p class="brand-caption">Ваше пространство для идей</p>
+      <button class="new-chat" id="newChat" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Новый диалог</button>
+      <div class="section-label"><span>Недавнее</span><span id="historyCount"></span></div>
+      <div class="history"><div class="history-list" id="historyList"><div class="history-empty">История появится здесь после первого сообщения.</div></div></div>
+      <div class="sidebar-bottom"><div class="avatar">AI</div><div class="profile-copy"><strong>Лист AI</strong><span>Gemini · личное пространство</span></div></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Открыть историю" title="История"><svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+          <div class="mobile-brand"><span class="brand-mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M19.8 4.2C12.1 4.4 6.2 6.1 5 11.1c-.7 2.8 1.2 5.1 4 5.1 5 0 8.9-5.8 10.8-12Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M4 20c2.6-4.3 6-7.2 10-9.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>лист</div>
+          <div class="model-label"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.64 5.64l2.12 2.12m8.48 8.48 2.12 2.12m0-12.72-2.12 2.12m-8.48 8.48-2.12 2.12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.6"/></svg>Новый диалог <span class="model-tag">Gemini</span></div>
+        </div>
+        <div class="connection" id="connection"><i class="connection-dot"></i><span id="connectionText">Проверяем связь</span></div>
+      </header>
+      <section class="conversation" id="conversation" aria-live="polite">
+        <div class="thread" id="thread">
+          <div class="welcome" id="welcome">
+            <div class="welcome-kicker">Думайте вслух</div>
+            <h1>Любопытство<br>ведёт к <em>новому.</em></h1>
+            <p class="welcome-copy">Задайте вопрос, разберите сложную мысль или начните с чистого листа. Я помогу навести порядок и найти направление.</p>
+            <div class="suggestions">
+              <button class="suggestion" type="button" data-prompt="Объясни простыми словами, как работает FastAPI"><span class="suggestion-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 3v2m0 14v2M5.64 5.64l1.42 1.42m9.88 9.88 1.42 1.42M3 12h2m14 0h2M5.64 18.36l1.42-1.42m9.88-9.88 1.42-1.42M15 9a3 3 0 1 0-5.65 1.5c.6.8 1.15 1.2 1.15 2.5h3c0-1.3.55-1.7 1.15-2.5A2.98 2.98 0 0 0 15 9Zm-4.5 6h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Объясни сложную тему простыми словами</span></button>
+              <button class="suggestion" type="button" data-prompt="Помоги придумать план на неделю, чтобы успевать важное и не выгорать"><span class="suggestion-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13H4V6a1 1 0 0 1 1-1Zm3 8h3m-3 3h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Составь план и помоги расставить приоритеты</span></button>
+              <button class="suggestion" type="button" data-prompt="Предложи три необычных идеи для небольшого веб-проекта"><span class="suggestion-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Придумай свежие идеи для проекта</span></button>
+              <button class="suggestion" type="button" data-prompt="Помоги улучшить этот текст: [вставьте текст]"><span class="suggestion-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="m16 4 4 4M3 21l4-.8L19.4 7.8a2.12 2.12 0 0 0-3-3L4 17.2 3 21Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Отредактируй текст или найди точную формулировку</span></button>
+            </div>
+          </div>
+          <div class="messages" id="messages" hidden></div>
+        </div>
+      </section>
+      <div class="composer-wrap">
+        <form class="composer" id="composer"><div class="input-shell"><textarea id="prompt" rows="1" maxlength="12000" placeholder="Напишите сообщение..." aria-label="Ваше сообщение"></textarea><button class="send-button" id="sendButton" type="submit" aria-label="Отправить сообщение" title="Отправить сообщение" disabled><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 19V5m-7 7 7-7 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div><div class="composer-note">Enter — отправить · Shift + Enter — новая строка</div></form>
+      </div>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    (() => {
+      const API_URL = 'http://localhost:8000/requests/';
+      const messages = document.getElementById('messages');
+      const welcome = document.getElementById('welcome');
+      const promptInput = document.getElementById('prompt');
+      const sendButton = document.getElementById('sendButton');
+      const historyList = document.getElementById('historyList');
+      const connection = document.getElementById('connection');
+      const connectionText = document.getElementById('connectionText');
+      const toast = document.getElementById('toast');
+      const sidebar = document.getElementById('sidebar');
+      let history = [];
+      let busy = false;
+      let toastTimer;
+
+      function setConnection(state, label) {
+        connection.classList.toggle('online', state === 'online');
+        connection.classList.toggle('offline', state === 'offline');
+        connectionText.textContent = label;
+      }
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 4400);
+      }
+      function timeLabel(value) {
+        if (!value) return new Intl.DateTimeFormat('ru', { hour:'2-digit', minute:'2-digit' }).format(new Date());
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat('ru', { hour:'2-digit', minute:'2-digit' }).format(date);
+      }
+      function resizeInput() {
+        promptInput.style.height = 'auto';
+        promptInput.style.height = `${Math.min(promptInput.scrollHeight, 150)}px`;
+        sendButton.disabled = busy || !promptInput.value.trim();
+      }
+      function scrollToBottom() {
+        const conversation = document.getElementById('conversation');
+        conversation.scrollTop = conversation.scrollHeight;
+      }
+      function createMessage(role, text, timestamp) {
+        const article = document.createElement('article');
+        article.className = `message ${role}`;
+        if (role === 'assistant') {
+          const avatar = document.createElement('div');
+          avatar.className = 'message-avatar';
+          avatar.setAttribute('aria-hidden', 'true');
+          avatar.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.64 5.64l2.12 2.12m8.48 8.48 2.12 2.12m0-12.72-2.12 2.12m-8.48 8.48-2.12 2.12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.6"/></svg>';
+          article.append(avatar);
+        }
+        const body = document.createElement('div');
+        body.className = 'message-body';
+        if (role === 'assistant') {
+          const meta = document.createElement('div');
+          meta.className = 'message-meta';
+          const name = document.createElement('strong');
+          name.textContent = 'Лист';
+          const time = document.createElement('time');
+          time.textContent = timeLabel(timestamp);
+          meta.append(name, time);
+          body.append(meta);
+        }
+        const content = document.createElement('div');
+        content.className = 'message-text';
+        content.textContent = text;
+        body.append(content);
+        if (role === 'assistant') {
+          const actions = document.createElement('div');
+          actions.className = 'message-actions';
+          const copy = document.createElement('button');
+          copy.className = 'icon-button';
+          copy.type = 'button';
+          copy.title = 'Скопировать ответ';
+          copy.setAttribute('aria-label', 'Скопировать ответ');
+          copy.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3" stroke="currentColor" stroke-width="1.6"/></svg>';
+          copy.addEventListener('click', async () => {
+            try { await navigator.clipboard.writeText(text); showToast('Ответ скопирован'); }
+            catch { showToast('Не удалось скопировать текст'); }
+          });
+          actions.append(copy);
+          body.append(actions);
+        }
+        article.append(body);
+        return article;
+      }
+      function showThread(items) {
+        welcome.hidden = true;
+        messages.hidden = false;
+        messages.replaceChildren();
+        items.forEach((item) => {
+          messages.append(createMessage('user', item.prompt, item.timestamp));
+          messages.append(createMessage('assistant', item.answer, item.timestamp));
+        });
+        scrollToBottom();
+      }
+      function startNewChat() {
+        messages.replaceChildren();
+        messages.hidden = true;
+        welcome.hidden = false;
+        historyList.querySelectorAll('.history-item').forEach((item) => item.classList.remove('active'));
+        sidebar.classList.remove('open');
+        promptInput.focus();
+      }
+      function renderHistory() {
+        document.getElementById('historyCount').textContent = history.length ? String(history.length) : '';
+        if (!history.length) {
+          historyList.innerHTML = '<div class="history-empty">История появится здесь после первого сообщения.</div>';
+          return;
+        }
+        historyList.replaceChildren();
+        [...history].reverse().forEach((entry) => {
+          const button = document.createElement('button');
+          button.className = 'history-item';
+          button.type = 'button';
+          button.title = entry.prompt;
+          const icon = document.createElement('span');
+          icon.setAttribute('aria-hidden', 'true');
+          icon.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+          const label = document.createElement('span');
+          label.textContent = entry.prompt;
+          button.append(icon, label);
+          button.addEventListener('click', () => {
+            historyList.querySelectorAll('.history-item').forEach((item) => item.classList.remove('active'));
+            button.classList.add('active');
+            showThread([{ prompt:entry.prompt, answer:entry.answer, timestamp:entry.timestamp }]);
+            sidebar.classList.remove('open');
+          });
+          historyList.append(button);
+        });
+      }
+      async function loadHistory() {
+        try {
+          const response = await fetch(API_URL, { headers:{ Accept:'application/json' } });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+          if (!Array.isArray(data)) throw new Error('Неожиданный формат истории');
+          history = data.map((row) => ({
+            id:row.id,
+            prompt:String(row.promt ?? row.prompt ?? ''),
+            answer:String(row.response ?? row.answer ?? ''),
+            timestamp:row.created_at ?? row.timestamp ?? null,
+          })).filter((row) => row.prompt || row.answer);
+          renderHistory();
+          setConnection('online', 'Подключено');
+        } catch (error) {
+          setConnection('offline', 'Нет связи с API');
+          showToast(`Не удалось загрузить историю. Проверьте, что API запущен на localhost:8000. ${error.message}`);
+        }
+      }
+      async function sendPrompt(value) {
+        const text = value.trim();
+        if (!text || busy) return;
+        welcome.hidden = true;
+        messages.hidden = false;
+        messages.append(createMessage('user', text));
+        const pending = document.createElement('article');
+        pending.className = 'message assistant';
+        pending.innerHTML = '<div class="message-avatar" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M12 3v3m0 12v3M3 12h3m12 0h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div><div class="message-body"><div class="message-meta"><strong>Лист</strong></div><div class="typing" aria-label="Генерируется ответ"><i></i><i></i><i></i></div></div>';
+        messages.append(pending);
+        scrollToBottom();
+        busy = true;
+        promptInput.value = '';
+        resizeInput();
+        promptInput.disabled = true;
+        try {
+          const response = await fetch(API_URL, {
+            method:'POST',
+            headers:{ 'Content-Type':'application/json', Accept:'application/json' },
+            body:JSON.stringify({ promt:text }),
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(payload.detail || `Ошибка сервера: ${response.status}`);
+          if (typeof payload.answer !== 'string') throw new Error('API вернул ответ в неожиданном формате');
+          pending.replaceWith(createMessage('assistant', payload.answer));
+          history.push({ prompt:text, answer:payload.answer, timestamp:new Date().toISOString() });
+          renderHistory();
+          setConnection('online', 'Подключено');
+        } catch (error) {
+          pending.remove();
+          setConnection('offline', 'Ошибка запроса');
+          showToast(`Не удалось получить ответ: ${error.message}`);
+        } finally {
+          busy = false;
+          promptInput.disabled = false;
+          resizeInput();
+          promptInput.focus();
+          scrollToBottom();
+        }
+      }
+      document.getElementById('composer').addEventListener('submit', (event) => {
+        event.preventDefault();
+        sendPrompt(promptInput.value);
+      });
+      promptInput.addEventListener('input', resizeInput);
+      promptInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+          event.preventDefault();
+          if (!sendButton.disabled) sendPrompt(promptInput.value);
+        }
+      });
+      document.getElementById('newChat').addEventListener('click', startNewChat);
+      document.getElementById('sidebarToggle').addEventListener('click', () => sidebar.classList.toggle('open'));
+      document.querySelectorAll('[data-prompt]').forEach((button) => button.addEventListener('click', () => {
+        promptInput.value = button.dataset.prompt;
+        resizeInput();
+        promptInput.focus();
+      }));
+      document.addEventListener('click', (event) => {
+        if (window.innerWidth <= 760 && sidebar.classList.contains('open') && !sidebar.contains(event.target) && !event.target.closest('#sidebarToggle')) sidebar.classList.remove('open');
+      });
+      loadHistory();
+    })();
+  </script>
+</body>
+</html>
